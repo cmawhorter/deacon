@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "dependencies": {
+    "nano": "^6.1.2"
+  }
+}
