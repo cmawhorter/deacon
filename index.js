@@ -27,6 +27,7 @@ function Deacon(options) {
 
 Deacon.prototype.create = function(email, password, properties, callback) {
   // TODO: put constraints on password.  IIRC a pw length > some amount could make passwords less secure. not sure about bcrypt?
+  // FIXME: yup. bcrypt has 72 char limit http://security.stackexchange.com/questions/21524/bcrypts-72-character-limit-and-using-it-as-a-general-digest-algorithm
   var _this = this;
   if (typeof properties === 'function') {
     callback = properties;
