@@ -1,79 +1,72 @@
-var bcrypt = require('bcrypt');
+var DeaconCrypto = require('./lib/crypto.js');
 
-var HASH_SEPARATOR = ':';
-
-var OptionDefaults = {
-    cryptoRounds: 10
-  , databaseEmailColumn: 'email'
-  , databasePasswordColumn: 'password'
-};
-
-function Deacon(userProvider, options) {
-  this.userProvider = userProvider;
-  this.options = options || {};
+function Deacon(options) {
+  options = options || {};
+  this.options = {
+      crypto: null
+    , db: null
+  };
+  for (var k in options) {
+    if (k in this.options) {
+      this.options[k] = options[k];
+    }
+    else {
+      throw new Error('Invalid option "' + k + '"');
+    }
+  }
+  this.crypto = new DeaconCrypto(this.options.crypto);
+  this.db = this.options.db;
 }
 
-Deacon.prototype.createUser = function(email, password, properties, callback) {
+Deacon.prototype.create = function(email, password, properties, callback) {
   var _this = this;
   if (typeof properties === 'function') {
     callback = properties;
     properties = {};
   }
-  var user = Object.create(properties || {});
-  user[_this.options.databaseEmailColumn] = email;
-  Deacon.hash(password, _this.options.cryptoRounds, function(err, hash) {
+  properties[_this.db.columnNames.email] = email;
+  _this.crypto.hashPassword(password, function(err) {
     if (err) return callback(err);
-    user[_this.options.databasePasswordColumn] = _this.options.cryptoRounds + HASH_SEPARATOR + hash;
-    _this.userProvider.create(user, callback);
+    properties[_this.db.columnNames.password] = password;
+    _this.db.create(properties, callback);
   });
 };
 
-Deacon.prototype.validateUser = function(email, password, callback) {
+Deacon.prototype.verify = function(email, callback) {
+  this.db.activate(email, callback);
+};
+
+Deacon.prototype.createVerified = function(email, password, properties, callback) {
+  if (typeof properties === 'function') {
+    callback = properties;
+    properties = {};
+  }
+  properties[this.db.columnNames.verified] = true;
+  this.create(email, password, properties, callback);
+};
+
+Deacon.prototype.reset = function(email, callback) {
   var _this = this;
-  _this.userProvider.get(email, function(err, user) {
+  _this.db.get(email, function(err, user) {
     if (err) return callback(err);
-    var toks = user[_this.options.databasePasswordColumn].split(':');
-    bcrypt.compare(password, toks[3], function(err, valid) {
-      if (err) return callback(err);
-      callback(null, valid);
-    });
+    var signed = _this.crypto.signPasswordReset(user.password);
+    // TODO: create mailer and option
+    callback(null, signed);
   });
 };
 
-Deacon.prototype.generatePasswordReset = function(email, callback) {
+Deacon.prototype.authenticate = function(email, password, callback) {
   var _this = this;
-  _this.userProvider.get(email, function(err, user) {
+  _this.db.get(email, function(err, user) {
     if (err) return callback(err);
-    // TODO: generate and return a single hmac signed nonce message
+    _this.crypto.validatePasswordHash(user.password, password, callback);
   });
 };
 
-Deacon.prototype.validatePasswordReset = function(email, password, callback) {
-  var _this = this;
-  _this.userProvider.get(email, function(err, user) {
-    if (err) return callback(err);
-    var toks = user[_this.options.databasePasswordColumn].split(':');
-    bcrypt.compare(password, toks[3], function(err, valid) {
-      if (err) return callback(err);
-      // TODO: validate nonce and hmac message timeout
-      // nonce = existing hashed password +
-      // databaseResetNonceColumn
-      // TODO: update user password
-      // TODO: ensure password is not the same
-      // TODO: prevent last N passwords?
-    });
-  });
+Deacon.prototype.disable = function(email, callback) {
+  this.db.remove(email, callback);
 };
 
-Deacon.hash = function hash(password, rounds, callback) {
-  rounds = rounds || OptionDefaults.cryptoRounds;
-  bcrypt.genSalt(rounds, function(err, salt) {
-    if (err) return callback(err);
-    bcrypt.hash(password, salt, function(err, hash) {
-      if (err) return callback(err);
-      callback(null, salt + HASH_SEPARATOR + hash);
-    });
-  });
-};
+Deacon.Crypto = DeaconCrypto;
 
 module.exports = Deacon;

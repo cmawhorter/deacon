@@ -1,2 +1,2 @@
 # deacon
-Simple user account management
+Node.js user account management framework that doesn't take over your website.

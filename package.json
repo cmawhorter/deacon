@@ -1,6 +1,6 @@
 {
   "name": "deacon",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Simple user account management",
   "main": "index.js",
   "scripts": {
