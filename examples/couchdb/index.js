@@ -35,12 +35,21 @@ var deacon = new Deacon({
         body.verified = true;
         db.insert(body, email, callback);
       });
+    },
+
+    password: function(email, newPassword, callback) {
+      db.get(email, function(err, body) {
+        if (err) return callback(err);
+        body.password = newPassword;
+        db.insert(body, email, callback);
+      });
     }
   }
 });
 
 var email = 'test' + Math.floor(Math.random() * 100000) + '@example.com';
 var password = 'abcd1234';
+var changedPassword = 'password!';
 deacon.create(email, password, { a: 'property', goes: 'here' }, function(err, result) {
   if (err) throw err;
   console.log('created %s', email, result);
@@ -52,6 +61,18 @@ deacon.create(email, password, { a: 'property', goes: 'here' }, function(err, re
       deacon.reset(email, function(err, message) {
         if (err) throw err;
         console.log('user reset message', message);
+        deacon.authenticateReset(email, message, function(err, valid) {
+          if (err) throw err;
+          console.log('reset token is %s', valid ? 'valid' : 'INVALID!');
+          deacon.forcePasswordChange(email, changedPassword, function(err) {
+            if (err) throw err;
+            console.log('password has been changed. authenticating with new password...');
+            deacon.authenticate(email, changedPassword, function(err, valid) {
+              if (err) throw err;
+              console.log('user is %s', valid ? 'valid' : 'INVALID!');
+            });
+          });
+        });
       });
     });
   });
