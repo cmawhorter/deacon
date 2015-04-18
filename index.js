@@ -1,4 +1,7 @@
-var DeaconCrypto = require('./lib/crypto.js');
+'use strict';
+
+var DeaconCrypto = require('./lib/crypto.js')
+  , DeaconValidation = require('./lib/validation.js');
 
 var defaultColumnNames = {
     email: 'email'
@@ -25,9 +28,17 @@ function Deacon(options) {
   this.columnNames = this.db.columnNames || defaultColumnNames;
 }
 
+Deacon.prototype.validateAndCreate = function(email, password, properties, callback) {
+  var isValid = Deacon.Validation.isEmail(email) && Deacon.Validation.isPassword(password);
+  if (true === isValid) {
+    this.create(email, password, properties, callback);
+  }
+  else {
+    return false;
+  }
+};
+
 Deacon.prototype.create = function(email, password, properties, callback) {
-  // TODO: put constraints on password.  IIRC a pw length > some amount could make passwords less secure. not sure about bcrypt?
-  // FIXME: yup. bcrypt has 72 char limit http://security.stackexchange.com/questions/21524/bcrypts-72-character-limit-and-using-it-as-a-general-digest-algorithm
   var _this = this;
   if (typeof properties === 'function') {
     callback = properties;
@@ -111,5 +122,6 @@ Deacon.prototype.disable = function(email, callback) {
 };
 
 Deacon.Crypto = DeaconCrypto;
+Deacon.Validation = DeaconValidation;
 
 module.exports = Deacon;
